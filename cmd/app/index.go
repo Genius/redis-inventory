@@ -47,9 +47,10 @@ var indexCmd = &cobra.Command{
 		resultTrie := trie.NewTrie(trie.NewPunctuationSplitter([]rune(separators)...), maxChildren)
 		redisScanner.Scan(
 			adapter.ScanOptions{
-				ScanCount: scanCount,
-				Pattern:   pattern,
-				Throttle:  throttleNs,
+				ScanCount:  scanCount,
+				Pattern:    pattern,
+				Throttle:   throttleNs,
+				SamplePerc: samplePerc,
 			},
 			resultTrie,
 		)
@@ -76,7 +77,7 @@ func init() {
 	indexCmd.Flags().StringVarP(&logLevel, "logLevel", "l", "info", "Level of logs to be displayed")
 	indexCmd.Flags().StringVarP(&separators, "separators", "s", ":", "Symbols that logically separate levels of the key")
 	indexCmd.Flags().IntVarP(&maxChildren, "maxChildren", "m", 50, "Maximum children node can have before start aggregating")
-	indexCmd.Flags().IntVarP(&samplePerc, "samplePerc", "p", 10, "Percentage of returned keys to sample")
+	indexCmd.Flags().IntVarP(&samplePerc, "samplePerc", "n", 10, "Percentage of returned keys to sample")
 	indexCmd.Flags().StringVarP(&pattern, "pattern", "k", "*", "Glob pattern limiting the keys to be aggregated")
 	indexCmd.Flags().IntVarP(&scanCount, "scanCount", "c", 5000, "Number of keys to be scanned in one iteration (argument of scan command)")
 	indexCmd.Flags().IntVarP(&throttleNs, "throttle", "t", 0, "Throttle: number of nanoseconds to sleep between keys")

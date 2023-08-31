@@ -12,7 +12,6 @@ import (
 type RedisServiceInterface interface {
 	ScanKeys(ctx context.Context, options adapter.ScanOptions) <-chan adapter.BulkKeyInfo
 	GetKeysCount(ctx context.Context) (int64, error)
-	GetMemoryUsage(ctx context.Context, key string) (int64, error)
 }
 
 // RedisScanner scans redis keys and puts them in a trie
@@ -49,9 +48,9 @@ func (s *RedisScanner) Scan(options adapter.ScanOptions, result *trie.Trie) {
 				trie.ParamValue{Param: trie.KeysCount, Value: int64(100 / options.SamplePerc)},
 			)
 
-			if index%10 == 0 {
-				s.logger.Debug().Msgf("Dump %s value: %d", key, keyResult.Sizes[index])
-			}
+			// if index%10 == 0 {
+			// 	s.logger.Debug().Msgf("Dump %s value: %d", key, keyResult.Sizes[index])
+			// }
 		}
 	}
 	s.scanProgress.Stop()

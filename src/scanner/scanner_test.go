@@ -31,11 +31,6 @@ func (m *RedisServiceMock) GetKeysCount(ctx context.Context) (int64, error) {
 	return int64(args.Int(0)), args.Error(1)
 }
 
-func (m *RedisServiceMock) GetMemoryUsage(ctx context.Context, key string) (int64, error) {
-	args := m.Called(ctx, key)
-	return int64(args.Int(0)), args.Error(1)
-}
-
 type ProgressWriterMock struct {
 	mock.Mock
 }
@@ -66,9 +61,7 @@ func (suite *ScannerTestSuite) TestScan() {
 				Throttle:  0,
 			},
 		).
-		Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, nil).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.
@@ -107,9 +100,7 @@ func (suite *ScannerTestSuite) TestScanWithPattern() {
 				Pattern:   "dev:*",
 			},
 		).
-		Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, nil).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.
@@ -141,9 +132,7 @@ func (suite *ScannerTestSuite) TestScanWithError() {
 	redisMock := &RedisServiceMock{}
 	redisMock.
 		On("GetKeysCount", mock.Anything).Return(2, nil).
-		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, errors.New("cannot get memory")).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.
@@ -177,9 +166,7 @@ func (suite *ScannerTestSuite) TestScanCantGetCountKeys() {
 	redisMock := &RedisServiceMock{}
 	redisMock.
 		On("GetKeysCount", mock.Anything).Return(2, errors.New("cannot get count keys")).
-		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, nil).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.

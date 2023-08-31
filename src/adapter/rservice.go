@@ -64,7 +64,7 @@ type BulkKeyInfo struct {
 
 // ScanKeys scans keys asynchroniously and sends them to the returned channel
 func (s RedisService) ScanKeys(ctx context.Context, options ScanOptions) <-chan BulkKeyInfo {
-	resultChan := make(chan BulkKeyInfo, options.ScanCount*2)
+	resultChan := make(chan BulkKeyInfo)
 
 	// if options.Pattern != "*" && options.Pattern != "" {
 	// 	scanOpts.Pattern = options.Pattern
@@ -87,8 +87,6 @@ func (s RedisService) ScanKeys(ctx context.Context, options ScanOptions) <-chan 
 				Keys:  make([]string, sampledKeyLength),
 				Sizes: make([]int64, sampledKeyLength),
 			}
-			// keys := make([]string, 0, len(scanRes.keys)/10+1)
-			// sizes := make([]string, 0, len(scanRes.keys)/10+1)
 			p := radix.NewPipeline()
 			for index, key := range scanRes.keys {
 				if index%100 < options.SamplePerc {
