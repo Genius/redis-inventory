@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"os"
+
 	"github.com/mediocregopher/radix/v4"
 	"github.com/obukhov/redis-inventory/src/adapter"
 	"github.com/obukhov/redis-inventory/src/logger"
@@ -9,19 +11,29 @@ import (
 	"github.com/obukhov/redis-inventory/src/scanner"
 	"github.com/obukhov/redis-inventory/src/trie"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var indexCmd = &cobra.Command{
 	Use:   "index redis://[:<password>@]<host>:<port>[/<dbIndex>]",
 	Short: "Scan keys and save prefix tree in a temporary file for further rendering with display command",
 	Long:  "Keep in mind that some options are scanning (index) options that cannot be redefined later. For example, `maxChildren` changes the way index data is built, unlike `depth` parameter only influencing rendering",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		consoleLogger := logger.NewConsoleLogger(logLevel)
 		consoleLogger.Info().Msg("Start indexing")
 
-		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", args[0])
+		var redisUrl string
+		if len(args) > 0 {
+			redisUrl = args[0]
+		} else {
+			redisUrl = os.Getenv("REDIS_URL")
+		}
+
+		if redisUrl == "" {
+			consoleLogger.Fatal().Msg("No redis URL given")
+		}
+
+		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", redisUrl)
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create redis client")
 		}

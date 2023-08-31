@@ -17,12 +17,19 @@ var scanCmd = &cobra.Command{
 	Use:   "inventory redis://[:<password>@]<host>:<port>[/<dbIndex>]",
 	Short: "Scan keys and display summary right away with selected output and output params",
 	Long:  "Scan command builds prefix tree in memory and then displays the usage summary. To avoid scanning redis instance when trying different output formats use `index` and `display` commands",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		consoleLogger := logger.NewConsoleLogger(logLevel)
 		consoleLogger.Info().Msg("Start scanning")
 
-		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", args[0])
+		var redisUrl string
+		if len(args) > 0 {
+			redisUrl = args[0]
+		} else {
+			redisUrl = os.Getenv("REDIS_URL")
+		}
+
+		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", redisUrl)
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create redis client")
 		}
