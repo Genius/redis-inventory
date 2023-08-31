@@ -3,8 +3,9 @@ package scanner
 import (
 	"context"
 	"errors"
-	"github.com/obukhov/redis-inventory/src/adapter"
 	"testing"
+
+	"github.com/obukhov/redis-inventory/src/adapter"
 
 	"github.com/obukhov/redis-inventory/src/trie"
 	"github.com/rs/zerolog"

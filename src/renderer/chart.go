@@ -171,9 +171,11 @@ func (o anychartRenderer) render(result Node) (string, error) {
 
 				// configure tooltips
 				chart.tooltip().useHtml(true);
-				chart.tooltip().format(
-					"<span style='font-weight:bold'>{%pathFull}</span><br />{%valueHuman} in {%keys} keys"
-				);
+				chart.tooltip().format(function() {
+					const pathEscaped = this.getData("pathFull").replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+					return "<span style='font-weight:bold'>" + pathEscaped + "</span><br />" +
+						this.getData("valueHuman") +" in "+ this.getData("keys") +" keys";
+				});
 
 				// initiate drawing the chart
 				chart.draw();
