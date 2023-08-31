@@ -75,8 +75,9 @@ func init() {
 	RootCmd.AddCommand(indexCmd)
 	indexCmd.Flags().StringVarP(&logLevel, "logLevel", "l", "info", "Level of logs to be displayed")
 	indexCmd.Flags().StringVarP(&separators, "separators", "s", ":", "Symbols that logically separate levels of the key")
-	indexCmd.Flags().IntVarP(&maxChildren, "maxChildren", "m", 10, "Maximum children node can have before start aggregating")
+	indexCmd.Flags().IntVarP(&maxChildren, "maxChildren", "m", 50, "Maximum children node can have before start aggregating")
+	indexCmd.Flags().IntVarP(&samplePerc, "samplePerc", "p", 10, "Percentage of returned keys to sample")
 	indexCmd.Flags().StringVarP(&pattern, "pattern", "k", "*", "Glob pattern limiting the keys to be aggregated")
-	indexCmd.Flags().IntVarP(&scanCount, "scanCount", "c", 1000, "Number of keys to be scanned in one iteration (argument of scan command)")
+	indexCmd.Flags().IntVarP(&scanCount, "scanCount", "c", 5000, "Number of keys to be scanned in one iteration (argument of scan command)")
 	indexCmd.Flags().IntVarP(&throttleNs, "throttle", "t", 0, "Throttle: number of nanoseconds to sleep between keys")
 }

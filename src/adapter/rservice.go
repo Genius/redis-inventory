@@ -2,16 +2,47 @@ package adapter
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/mediocregopher/radix/v4"
+
+	"github.com/mediocregopher/radix/v4/resp"
+	"github.com/mediocregopher/radix/v4/resp/resp3"
 )
 
 // ScanOptions options for scanning keyspace
 type ScanOptions struct {
-	Pattern   string
-	ScanCount int
-	Throttle  int
+	Pattern    string
+	ScanCount  int
+	Throttle   int
+	SamplePerc int
+}
+
+type scanResult struct {
+	cur  string
+	keys []string
+}
+
+func (s *scanResult) UnmarshalRESP(br resp.BufferedReader, o *resp.Opts) error {
+	var ah resp3.ArrayHeader
+	if err := ah.UnmarshalRESP(br, o); err != nil {
+		return err
+	} else if ah.NumElems != 2 {
+		return errors.New("not enough parts returned")
+	}
+
+	var c resp3.BlobString
+	if err := c.UnmarshalRESP(br, o); err != nil {
+		return err
+	}
+
+	s.cur = c.S
+	s.keys = s.keys[:0]
+
+	return resp3.Unmarshal(br, &s.keys, o)
 }
 
 // NewRedisService creates RedisService
@@ -26,25 +57,61 @@ type RedisService struct {
 	client radix.Client
 }
 
+type BulkKeyInfo struct {
+	Keys  []string
+	Sizes []int64
+}
+
 // ScanKeys scans keys asynchroniously and sends them to the returned channel
-func (s RedisService) ScanKeys(ctx context.Context, options ScanOptions) <-chan string {
-	resultChan := make(chan string)
+func (s RedisService) ScanKeys(ctx context.Context, options ScanOptions) <-chan BulkKeyInfo {
+	resultChan := make(chan BulkKeyInfo, options.ScanCount*2)
 
-	scanOpts := radix.ScannerConfig{
-		Command: "SCAN",
-		Count:   options.ScanCount,
-	}
-
-	if options.Pattern != "*" && options.Pattern != "" {
-		scanOpts.Pattern = options.Pattern
-	}
+	// if options.Pattern != "*" && options.Pattern != "" {
+	// 	scanOpts.Pattern = options.Pattern
+	// }
 
 	go func() {
 		defer close(resultChan)
-		var key string
-		radixScanner := scanOpts.New(s.client)
-		for radixScanner.Next(ctx, &key) {
-			resultChan <- key
+		scanRes := scanResult{cur: "0"}
+
+		for {
+			err := s.client.Do(ctx, radix.Cmd(&scanRes, "SCAN", scanRes.cur, "COUNT", strconv.Itoa(options.ScanCount)))
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+				return
+			}
+
+			sampledKeyLength := len(scanRes.keys) * 100 / options.SamplePerc
+			keyIndex := 0
+			ret := BulkKeyInfo{
+				Keys:  make([]string, sampledKeyLength),
+				Sizes: make([]int64, sampledKeyLength),
+			}
+			// keys := make([]string, 0, len(scanRes.keys)/10+1)
+			// sizes := make([]string, 0, len(scanRes.keys)/10+1)
+			p := radix.NewPipeline()
+			for index, key := range scanRes.keys {
+				if index%100 < options.SamplePerc {
+					ret.Keys[keyIndex] = key
+					p.Append(radix.Cmd(&ret.Sizes[keyIndex], "MEMORY", "USAGE", key))
+					keyIndex++
+				}
+			}
+
+			ret.Keys = ret.Keys[:keyIndex]
+			ret.Sizes = ret.Sizes[:keyIndex]
+
+			err = s.client.Do(ctx, p)
+			if err != nil {
+				fmt.Printf("Failed: %s\n", err.Error())
+			}
+
+			resultChan <- ret
+
+			if scanRes.cur == "0" {
+				return
+			}
+
 			if options.Throttle > 0 {
 				time.Sleep(time.Nanosecond * time.Duration(options.Throttle))
 			}

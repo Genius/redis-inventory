@@ -20,9 +20,9 @@ type RedisServiceMock struct {
 	mock.Mock
 }
 
-func (m *RedisServiceMock) ScanKeys(ctx context.Context, options adapter.ScanOptions) <-chan string {
+func (m *RedisServiceMock) ScanKeys(ctx context.Context, options adapter.ScanOptions) <-chan adapter.BulkKeyInfo {
 	args := m.Called(ctx, options)
-	return args.Get(0).(chan string)
+	return args.Get(0).(chan adapter.BulkKeyInfo)
 }
 
 func (m *RedisServiceMock) GetKeysCount(ctx context.Context) (int64, error) {

@@ -10,7 +10,7 @@ import (
 
 // RedisServiceInterface abstraction to access redis
 type RedisServiceInterface interface {
-	ScanKeys(ctx context.Context, options adapter.ScanOptions) <-chan string
+	ScanKeys(ctx context.Context, options adapter.ScanOptions) <-chan adapter.BulkKeyInfo
 	GetKeysCount(ctx context.Context) (int64, error)
 	GetMemoryUsage(ctx context.Context, key string) (int64, error)
 }
@@ -38,22 +38,21 @@ func (s *RedisScanner) Scan(options adapter.ScanOptions, result *trie.Trie) {
 		totalCount = s.getKeysCount()
 	}
 
-	s.scanProgress.Start(totalCount)
-	for key := range s.redisService.ScanKeys(context.Background(), options) {
-		s.scanProgress.Increment()
-		res, err := s.redisService.GetMemoryUsage(context.Background(), key)
-		if err != nil {
-			s.logger.Error().Err(err).Msgf("Error dumping key %s", key)
-			continue
+	s.scanProgress.Start((totalCount * int64(options.SamplePerc)) / 100)
+	for keyResult := range s.redisService.ScanKeys(context.Background(), options) {
+		for index, key := range keyResult.Keys {
+			s.scanProgress.Increment()
+
+			result.Add(
+				key,
+				trie.ParamValue{Param: trie.BytesSize, Value: keyResult.Sizes[index] * int64(100/options.SamplePerc)},
+				trie.ParamValue{Param: trie.KeysCount, Value: int64(100 / options.SamplePerc)},
+			)
+
+			if index%10 == 0 {
+				s.logger.Debug().Msgf("Dump %s value: %d", key, keyResult.Sizes[index])
+			}
 		}
-
-		result.Add(
-			key,
-			trie.ParamValue{Param: trie.BytesSize, Value: res},
-			trie.ParamValue{Param: trie.KeysCount, Value: 1},
-		)
-
-		s.logger.Debug().Msgf("Dump %s value: %d", key, res)
 	}
 	s.scanProgress.Stop()
 }
