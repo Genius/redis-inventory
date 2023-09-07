@@ -3,8 +3,9 @@ package scanner
 import (
 	"context"
 	"errors"
-	"github.com/obukhov/redis-inventory/src/adapter"
 	"testing"
+
+	"github.com/obukhov/redis-inventory/src/adapter"
 
 	"github.com/obukhov/redis-inventory/src/trie"
 	"github.com/rs/zerolog"
@@ -20,18 +21,13 @@ type RedisServiceMock struct {
 	mock.Mock
 }
 
-func (m *RedisServiceMock) ScanKeys(ctx context.Context, options adapter.ScanOptions) <-chan string {
+func (m *RedisServiceMock) ScanKeys(ctx context.Context, options adapter.ScanOptions) <-chan adapter.BulkKeyInfo {
 	args := m.Called(ctx, options)
-	return args.Get(0).(chan string)
+	return args.Get(0).(chan adapter.BulkKeyInfo)
 }
 
 func (m *RedisServiceMock) GetKeysCount(ctx context.Context) (int64, error) {
 	args := m.Called(ctx)
-	return int64(args.Int(0)), args.Error(1)
-}
-
-func (m *RedisServiceMock) GetMemoryUsage(ctx context.Context, key string) (int64, error) {
-	args := m.Called(ctx, key)
 	return int64(args.Int(0)), args.Error(1)
 }
 
@@ -65,9 +61,7 @@ func (suite *ScannerTestSuite) TestScan() {
 				Throttle:  0,
 			},
 		).
-		Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, nil).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.
@@ -106,9 +100,7 @@ func (suite *ScannerTestSuite) TestScanWithPattern() {
 				Pattern:   "dev:*",
 			},
 		).
-		Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, nil).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.
@@ -140,9 +132,7 @@ func (suite *ScannerTestSuite) TestScanWithError() {
 	redisMock := &RedisServiceMock{}
 	redisMock.
 		On("GetKeysCount", mock.Anything).Return(2, nil).
-		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, errors.New("cannot get memory")).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.
@@ -176,9 +166,7 @@ func (suite *ScannerTestSuite) TestScanCantGetCountKeys() {
 	redisMock := &RedisServiceMock{}
 	redisMock.
 		On("GetKeysCount", mock.Anything).Return(2, errors.New("cannot get count keys")).
-		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel).
-		On("GetMemoryUsage", mock.Anything, "key1").Return(1, nil).
-		On("GetMemoryUsage", mock.Anything, "key2").Return(10, nil)
+		On("ScanKeys", mock.Anything, mock.Anything).Return(scanChannel)
 
 	progressMock := &ProgressWriterMock{}
 	progressMock.

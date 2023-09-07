@@ -17,12 +17,19 @@ var scanCmd = &cobra.Command{
 	Use:   "inventory redis://[:<password>@]<host>:<port>[/<dbIndex>]",
 	Short: "Scan keys and display summary right away with selected output and output params",
 	Long:  "Scan command builds prefix tree in memory and then displays the usage summary. To avoid scanning redis instance when trying different output formats use `index` and `display` commands",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		consoleLogger := logger.NewConsoleLogger(logLevel)
 		consoleLogger.Info().Msg("Start scanning")
 
-		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", args[0])
+		var redisUrl string
+		if len(args) > 0 {
+			redisUrl = args[0]
+		} else {
+			redisUrl = os.Getenv("REDIS_URL")
+		}
+
+		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", redisUrl)
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create redis client")
 		}
@@ -36,9 +43,10 @@ var scanCmd = &cobra.Command{
 		resultTrie := trie.NewTrie(trie.NewPunctuationSplitter([]rune(separators)...), maxChildren)
 		redisScanner.Scan(
 			adapter.ScanOptions{
-				ScanCount: scanCount,
-				Pattern:   pattern,
-				Throttle:  throttleNs,
+				ScanCount:  scanCount,
+				Pattern:    pattern,
+				Throttle:   throttleNs,
+				SamplePerc: samplePerc,
 			},
 			resultTrie,
 		)
@@ -63,6 +71,7 @@ func init() {
 	scanCmd.Flags().StringVarP(&outputParams, "output-params", "p", "", "Parameters specific for output type")
 	scanCmd.Flags().StringVarP(&logLevel, "logLevel", "l", "info", "Level of logs to be displayed")
 	scanCmd.Flags().StringVarP(&separators, "separators", "s", ":", "Symbols that logically separate levels of the key")
+	scanCmd.Flags().IntVarP(&samplePerc, "samplePerc", "n", 10, "Percentage of returned keys to sample")
 	scanCmd.Flags().IntVarP(&maxChildren, "maxChildren", "m", 10, "Maximum children node can have before start aggregating")
 	scanCmd.Flags().StringVarP(&pattern, "pattern", "k", "*", "Glob pattern limiting the keys to be aggregated")
 	scanCmd.Flags().IntVarP(&scanCount, "scanCount", "c", 1000, "Number of keys to be scanned in one iteration (argument of scan command)")

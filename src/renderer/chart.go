@@ -1,14 +1,15 @@
 package renderer
 
 import (
-	"code.cloudfoundry.org/bytefmt"
 	"encoding/json"
 	"errors"
+	"sort"
+	"strings"
+
+	"code.cloudfoundry.org/bytefmt"
 	"github.com/hetiansu5/urlquery"
 	"github.com/obukhov/redis-inventory/src/server"
 	"github.com/obukhov/redis-inventory/src/trie"
-	"sort"
-	"strings"
 )
 
 // NewChartRendererParams creates ChartRendererParams
@@ -85,7 +86,7 @@ func (o ChartRenderer) convertChildren(node *trie.Node, level int, prefix string
 
 		item := o.toNode(childNode, key, prefix)
 
-		if level < o.params.Depth && node.OverflowChildrenCount == 0 {
+		if level < o.params.Depth {
 			item.Children = o.convertChildren(childNode, nextLevel, prefix+key)
 		}
 
@@ -140,7 +141,7 @@ func (o anychartRenderer) render(result Node) (string, error) {
 			<script type="text/javascript">
 				// create data
 				var data = ` + string(s) + `;
-				const color = d3.scaleOrdinal(d3.schemePaired)
+				const color = d3.scaleOrdinal(d3.schemeCategory10)
 				// Free license provided for the project
 				anychart.licenseKey("redis-inventory-80818dc5-535fabc6");
 				// create a chart and set the data
@@ -170,9 +171,11 @@ func (o anychartRenderer) render(result Node) (string, error) {
 
 				// configure tooltips
 				chart.tooltip().useHtml(true);
-				chart.tooltip().format(
-					"<span style='font-weight:bold'>{%pathFull}</span><br />{%valueHuman} in {%keys} keys"
-				);
+				chart.tooltip().format(function() {
+					const pathEscaped = this.getData("pathFull").replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+					return "<span style='font-weight:bold'>" + pathEscaped + "</span><br />" +
+						this.getData("valueHuman") +" in "+ this.getData("keys") +" keys";
+				});
 
 				// initiate drawing the chart
 				chart.draw();

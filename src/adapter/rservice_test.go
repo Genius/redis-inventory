@@ -2,10 +2,11 @@ package adapter
 
 import (
 	"context"
+	"testing"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/mediocregopher/radix/v4"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type RedisServiceTestSuite struct {

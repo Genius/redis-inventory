@@ -2,11 +2,12 @@ package app
 
 import (
 	"encoding/json"
+	"os"
+
 	"github.com/obukhov/redis-inventory/src/logger"
 	"github.com/obukhov/redis-inventory/src/renderer"
 	"github.com/obukhov/redis-inventory/src/trie"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var displayCmd = &cobra.Command{
@@ -18,7 +19,13 @@ var displayCmd = &cobra.Command{
 		consoleLogger := logger.NewConsoleLogger(logLevel)
 		consoleLogger.Info().Msg("Loading index")
 
-		indexFileName := os.TempDir() + "/redis-inventory.json"
+		var indexFileName string
+		if len(args) > 0 {
+			indexFileName = args[0]
+		} else {
+			indexFileName = os.TempDir() + "/redis-inventory.json"
+		}
+
 		f, err := os.Open(indexFileName)
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create renderer")

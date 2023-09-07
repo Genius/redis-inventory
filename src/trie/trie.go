@@ -19,11 +19,30 @@ type Trie struct {
 	maxChildren int
 }
 
+func digitPrefix(key string) int {
+	lastDigit := -1
+	for index, c := range key {
+		if c < '0' || c > '9' {
+			lastDigit = index
+			break
+		}
+	}
+
+	return lastDigit
+}
+
 // Add adds information about another key with set of params
 func (t *Trie) Add(key string, paramValues ...ParamValue) {
 	curNode := t.root
 	for _, keyPiece := range t.splitter.Split(key) { // change to zero allocation segmenter
 		var nextNode *Node
+
+		prefix := digitPrefix(keyPiece)
+		if prefix > 0 {
+			keyPiece = "<id>" + keyPiece[prefix:]
+		} else if prefix == -1 {
+			keyPiece = "<id>"
+		}
 
 		if childNode := curNode.GetChild(keyPiece); childNode == nil {
 			if curNode.ChildCount() == 1 {

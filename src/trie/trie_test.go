@@ -1,9 +1,10 @@
 package trie
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type TrieTestSuite struct {
@@ -38,6 +39,21 @@ func (suite *TrieTestSuite) TestKeyEndingInFork() {
 	// fork node
 	assert.NotNil(suite.T(), trie.root.Children["foo:"].Children["bar:"].Aggr, "Fork node has where key ended")
 	assert.Equal(suite.T(), int64(130), trie.root.Children["foo:"].Children["bar:"].Aggr.Params[BytesSize], "Fork node aggregated value is 130")
+}
+
+func (suite *TrieTestSuite) TestIDsEndingInFork() {
+	trie := NewTrie(NewPunctuationSplitter(':'), 100)
+
+	trie.Add("123123:bar:lorem", ParamValue{BytesSize, 10})
+	trie.Add("234234:bar:ipsum", ParamValue{BytesSize, 20})
+	trie.Add("234:bar:", ParamValue{BytesSize, 100})
+	// root node
+	assert.Equal(suite.T(), int64(130), trie.root.Aggr.Params[BytesSize], "Root node aggregated value is 130")
+	// intermediate node
+	assert.Nil(suite.T(), trie.root.Children["<id>:"].Aggr, "Intermediate node skip aggregation if has just one child")
+	// fork node
+	assert.NotNil(suite.T(), trie.root.Children["<id>:"].Children["bar:"].Aggr, "Fork node has where key ended")
+	assert.Equal(suite.T(), int64(130), trie.root.Children["<id>:"].Children["bar:"].Aggr.Params[BytesSize], "Fork node aggregated value is 130")
 }
 
 func (suite *TrieTestSuite) TestKeyEndingInIntermediateNode() {

@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"os"
+
 	"github.com/mediocregopher/radix/v4"
 	"github.com/obukhov/redis-inventory/src/adapter"
 	"github.com/obukhov/redis-inventory/src/logger"
@@ -9,19 +11,29 @@ import (
 	"github.com/obukhov/redis-inventory/src/scanner"
 	"github.com/obukhov/redis-inventory/src/trie"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var indexCmd = &cobra.Command{
 	Use:   "index redis://[:<password>@]<host>:<port>[/<dbIndex>]",
 	Short: "Scan keys and save prefix tree in a temporary file for further rendering with display command",
 	Long:  "Keep in mind that some options are scanning (index) options that cannot be redefined later. For example, `maxChildren` changes the way index data is built, unlike `depth` parameter only influencing rendering",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		consoleLogger := logger.NewConsoleLogger(logLevel)
 		consoleLogger.Info().Msg("Start indexing")
 
-		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", args[0])
+		var redisUrl string
+		if len(args) > 0 {
+			redisUrl = args[0]
+		} else {
+			redisUrl = os.Getenv("REDIS_URL")
+		}
+
+		if redisUrl == "" {
+			consoleLogger.Fatal().Msg("No redis URL given")
+		}
+
+		clientSource, err := (radix.PoolConfig{}).New(context.Background(), "tcp", redisUrl)
 		if err != nil {
 			consoleLogger.Fatal().Err(err).Msg("Can't create redis client")
 		}
@@ -35,9 +47,10 @@ var indexCmd = &cobra.Command{
 		resultTrie := trie.NewTrie(trie.NewPunctuationSplitter([]rune(separators)...), maxChildren)
 		redisScanner.Scan(
 			adapter.ScanOptions{
-				ScanCount: scanCount,
-				Pattern:   pattern,
-				Throttle:  throttleNs,
+				ScanCount:  scanCount,
+				Pattern:    pattern,
+				Throttle:   throttleNs,
+				SamplePerc: samplePerc,
 			},
 			resultTrie,
 		)
@@ -63,8 +76,9 @@ func init() {
 	RootCmd.AddCommand(indexCmd)
 	indexCmd.Flags().StringVarP(&logLevel, "logLevel", "l", "info", "Level of logs to be displayed")
 	indexCmd.Flags().StringVarP(&separators, "separators", "s", ":", "Symbols that logically separate levels of the key")
-	indexCmd.Flags().IntVarP(&maxChildren, "maxChildren", "m", 10, "Maximum children node can have before start aggregating")
+	indexCmd.Flags().IntVarP(&maxChildren, "maxChildren", "m", 50, "Maximum children node can have before start aggregating")
+	indexCmd.Flags().IntVarP(&samplePerc, "samplePerc", "n", 10, "Percentage of returned keys to sample")
 	indexCmd.Flags().StringVarP(&pattern, "pattern", "k", "*", "Glob pattern limiting the keys to be aggregated")
-	indexCmd.Flags().IntVarP(&scanCount, "scanCount", "c", 1000, "Number of keys to be scanned in one iteration (argument of scan command)")
+	indexCmd.Flags().IntVarP(&scanCount, "scanCount", "c", 5000, "Number of keys to be scanned in one iteration (argument of scan command)")
 	indexCmd.Flags().IntVarP(&throttleNs, "throttle", "t", 0, "Throttle: number of nanoseconds to sleep between keys")
 }
